@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Привычки</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+            padding-top: env(safe-area-inset-top, 20px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-top: 20px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .date {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .add-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .add-form input {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .add-form input::placeholder {
+            color: #666;
+        }
+
+        .add-form button {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            background: #4CAF50;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .habits-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .habit {
+            background: rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 18px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s;
+        }
+
+        .habit.done {
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        .habit-check {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 3px solid #4CAF50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+
+        .habit.done .habit-check {
+            background: #4CAF50;
+        }
+
+        .habit-check::after {
+            content: '✓';
+            color: transparent;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .habit.done .habit-check::after {
+            color: #fff;
+        }
+
+        .habit-info {
+            flex: 1;
+        }
+
+        .habit-name {
+            font-size: 17px;
+            margin-bottom: 4px;
+        }
+
+        .habit.done .habit-name {
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+
+        .habit-streak {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .habit-streak span {
+            color: #FF9800;
+        }
+
+        .habit-delete {
+            color: #666;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px 10px;
+        }
+
+        .stats {
+            margin-top: 30px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stats-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        .stats-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .empty {
+            text-align: center;
+            color: #666;
+            margin-top: 50px;
+            font-size: 16px;
+        }
+
+        .week-view {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .week-day {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.1);
+            font-size: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+
+        .week-day.completed {
+            background: #4CAF50;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 Привычки</h1>
+        <div class="date" id="currentDate"></div>
+    </div>
+
+    <div class="add-form">
+        <input type="text" id="habitInput" placeholder="Новая привычка...">
+        <button onclick="addHabit()">+</button>
+    </div>
+
+    <div class="habits-list" id="habitsList"></div>
+
+    <div class="stats">
+        <div class="stats-title">Выполнено сегодня</div>
+        <div class="stats-number" id="statsNumber">0/0</div>
+    </div>
+
+    <script>
+        // Инициализация
+        let habits = JSON.parse(localStorage.getItem('habits')) || [];
+
+        // Показать дату
+        function showDate() {
+            const days = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+            const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+            const now = new Date();
+            document.getElementById('currentDate').textContent = 
+                `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]}`;
+        }
+
+        // Получить сегодняшнюю дату как строку
+        function getToday() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        // Добавить привычку
+        function addHabit() {
+            const input = document.getElementById('habitInput');
+            const name = input.value.trim();
+            if (!name) return;
+
+            habits.push({
+                id: Date.now(),
+                name: name,
+                completedDates: [],
+                createdAt: getToday()
+            });
+
+            input.value = '';
+            save();
+            render();
+        }
+
+        // Enter для добавления
+        document.getElementById('habitInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addHabit();
+        });
+
+        // Переключить выполнение
+        function toggleHabit(id) {
+            const habit = habits.find(h => h.id === id);
+            const today = getToday();
+            
+            if (habit.completedDates.includes(today)) {
+                habit.completedDates = habit.completedDates.filter(d => d !== today);
+            } else {
+                habit.completedDates.push(today);
+            }
+            
+            save();
+            render();
+        }
+
+        // Удалить привычку
+        function deleteHabit(id) {
+            if (confirm('Удалить привычку?')) {
+                habits = habits.filter(h => h.id !== id);
+                save();
+                render();
+            }
+        }
+
+        // Посчитать streak
+        function getStreak(habit) {
+            let streak = 0;
+            let date = new Date();
+            
+            // Если сегодня не выполнено, начинаем со вчера
+            const today = getToday();
+            if (!habit.completedDates.includes(today)) {
+                date.setDate(date.getDate() - 1);
+            }
+            
+            while (true) {
+                const dateStr = date.toISOString().split('T')[0];
+                if (habit.completedDates.includes(dateStr)) {
+                    streak++;
+                    date.setDate(date.getDate() - 1);
+                } else {
+                    break;
+                }
+            }
+            
+            return streak;
+        }
+
+        // Получить последние 7 дней
+        function getWeekDays(habit) {
+            const days = [];
+            const dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                days.push({
+                    name: dayNames[date.getDay()],
+                    completed: habit.completedDates.includes(dateStr)
+                });
+            }
+            return days;
+        }
+
+        // Сохранить
+        function save() {
+            localStorage.setItem('habits', JSON.stringify(habits));
+        }
+
+        // Отрисовать
+        function render() {
+            const list = document.getElementById('habitsList');
+            const today = getToday();
+            
+            if (habits.length === 0) {
+                list.innerHTML = '<div class="empty">Добавь первую привычку ☝️</div>';
+                document.getElementById('statsNumber').textContent = '0/0';
+                return;
+            }
+
+            let doneCount = 0;
+
+            list.innerHTML = habits.map(habit => {
+                const isDone = habit.completedDates.includes(today);
+                if (isDone) doneCount++;
+                const streak = getStreak(habit);
+                const weekDays = getWeekDays(habit);
+
+                return `
+                    <div class="habit ${isDone ? 'done' : ''}">
+                        <div class="habit-check" onclick="toggleHabit(${habit.id})"></div>
+                        <div class="habit-info">
+                            <div class="habit-name">${habit.name}</div>
+                            <div class="habit-streak">🔥 <span>${streak}</span> ${streak === 1 ? 'день' : 'дней'} подряд</div>
+                            <div class="week-view">
+                                ${weekDays.map(d => `
+                                    <div class="week-day ${d.completed ? 'completed' : ''}">${d.name}</div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="habit-delete" onclick="deleteHabit(${habit.id})">×</div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('statsNumber').textContent = `${doneCount}/${habits.length}`;
+        }
+
+        // Запуск
+        showDate();
+        render();
+
+        // Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
